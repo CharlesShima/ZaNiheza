@@ -5,6 +5,16 @@ import { useAuth } from '../lib/auth';
 import Logo from '../components/Logo';
 import Seo from '../components/Seo';
 
+// Turns Supabase's error into a plain explanation, keeping the original text for troubleshooting
+function explain(raw = '') {
+  const m = raw.toLowerCase();
+  if (m.includes('invalid login credentials')) return 'That email and password don\'t match. Check them, or use "Email me a reset link". (Invalid login credentials)';
+  if (m.includes('email not confirmed')) return 'This email hasn\'t been confirmed yet in Supabase. (Email not confirmed)';
+  if (m.includes('api key') || m.includes('apikey')) return `The website's Supabase key is wrong. Check VITE_SUPABASE_ANON_KEY in Netlify and redeploy. (${raw})`;
+  if (m.includes('failed to fetch') || m.includes('network')) return `The website can't reach Supabase. Check VITE_SUPABASE_URL in Netlify and redeploy. (${raw})`;
+  return `Login failed: ${raw}`;
+}
+
 export default function Login() {
   const { session, isStaff, loading } = useAuth();
   const [email, setEmail] = useState('');
@@ -17,8 +27,12 @@ export default function Login() {
   async function signIn(e) {
     e.preventDefault();
     setBusy(true); setMsg('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setMsg('That email and password don\'t match. Check them, or use "Email me a reset link".');
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      if (error) setMsg(explain(error.message));
+    } catch (err) {
+      setMsg(explain(err.message));
+    }
     setBusy(false);
   }
   async function reset() {
