@@ -1,0 +1,141 @@
+import { formatDate, formatPrice } from '../lib/format';
+
+const yes = (v) => (v ? 'Yes' : 'No');
+const CURRENCIES = ['USD', 'RWF', 'EUR', 'GBP'];
+const seo = [
+  { key: 'seo_title', label: 'Search title (optional)', help: 'Shown in Google results. Around 60 characters.' },
+  { key: 'seo_description', label: 'Search description (optional)', type: 'textarea', rows: 2, help: 'Around 155 characters.' },
+];
+
+export const CONFIGS = {
+  packages: {
+    table: 'packages', title: 'Packages', singular: 'package', orderBy: 'updated_at',
+    select: '*, experience:experiences(name)',
+    columns: [
+      { key: 'title', label: 'Package' },
+      { key: 'experience', label: 'Experience', render: (r) => r.experience?.name || '' },
+      { key: 'duration_days', label: 'Days' },
+      { key: 'price_from', label: 'Price from', render: (r) => formatPrice(r.price_from, r.currency) || 'On request' },
+      { key: 'is_published', label: 'Live', render: (r) => yes(r.is_published) },
+    ],
+    fields: [
+      { key: 'title', label: 'Package title' },
+      { key: 'slug', label: 'Web address', type: 'slug', from: 'title', help: 'Leave empty to create it from the title.' },
+      { key: 'experience_id', label: 'Experience', type: 'relation', relation: { table: 'experiences', label: 'name' } },
+      { key: 'duration_days', label: 'Duration (days)', type: 'number', default: 1 },
+      { key: 'price_from', label: 'Price from (per person)', type: 'number' },
+      { key: 'currency', label: 'Currency', type: 'select', options: CURRENCIES, default: 'USD' },
+      { key: 'price_notes', label: 'Price notes', placeholder: 'e.g. Based on 2 sharing. Gorilla permit included.', wide: true },
+      { key: 'car_id', label: 'Vehicle', type: 'relation', relation: { table: 'cars', label: 'name', empty: 'No vehicle' } },
+      { key: 'is_published', label: 'Show on website', type: 'checkbox' },
+      { key: 'is_featured', label: 'Feature on home page', type: 'checkbox' },
+      { key: 'summary', label: 'Short summary', type: 'textarea', rows: 2, wide: true },
+      { key: 'description', label: 'Full description', type: 'textarea', rows: 6, wide: true },
+      { key: 'itinerary', label: 'Itinerary builder', type: 'itinerary', wide: true },
+      { key: 'includes', label: 'Included', type: 'list' },
+      { key: 'excludes', label: 'Not included', type: 'list' },
+      { key: 'cover_image', label: 'Cover image', type: 'image' },
+      { key: 'gallery', label: 'Gallery', type: 'images' },
+      ...seo,
+    ],
+  },
+  departures: {
+    table: 'departures', title: 'Dates & availability', singular: 'departure', orderBy: 'start_date', ascending: true,
+    select: '*, package:packages(title)',
+    columns: [
+      { key: 'start_date', label: 'Date', render: (r) => formatDate(r.start_date) },
+      { key: 'package', label: 'Package', render: (r) => r.package?.title || '' },
+      { key: 'seats', label: 'Places', render: (r) => `${r.seats_booked} / ${r.seats_total} booked` },
+      { key: 'status', label: 'Status' },
+    ],
+    fields: [
+      { key: 'package_id', label: 'Package', type: 'relation', relation: { table: 'packages', label: 'title', empty: 'Choose a package' } },
+      { key: 'start_date', label: 'Start date', type: 'date' },
+      { key: 'seats_total', label: 'Total places', type: 'number', default: 12 },
+      { key: 'seats_booked', label: 'Places booked', type: 'number', default: 0 },
+      { key: 'price', label: 'Price for this date (optional)', type: 'number', help: 'Leave empty to use the package price.' },
+      { key: 'status', label: 'Status', type: 'select', options: ['open', 'full', 'closed'], default: 'open' },
+    ],
+  },
+  experiences: {
+    table: 'experiences', title: 'Experiences', singular: 'experience', orderBy: 'sort_order', ascending: true,
+    columns: [
+      { key: 'name', label: 'Experience' },
+      { key: 'tagline', label: 'Tagline' },
+      { key: 'is_published', label: 'Live', render: (r) => yes(r.is_published) },
+    ],
+    fields: [
+      { key: 'name', label: 'Name' },
+      { key: 'slug', label: 'Web address', type: 'slug', from: 'name' },
+      { key: 'tagline', label: 'Tagline', wide: true },
+      { key: 'motto', label: 'Closing line', placeholder: 'e.g. Rare. Powerful. Unforgettable.', wide: true },
+      { key: 'summary', label: 'Short summary', type: 'textarea', rows: 2, wide: true },
+      { key: 'description', label: 'Full description', type: 'textarea', rows: 6, wide: true, help: 'Leave a blank line between paragraphs.' },
+      { key: 'highlights', label: 'Highlights', type: 'highlights', wide: true },
+      { key: 'cover_image', label: 'Cover image', type: 'image' },
+      { key: 'gallery', label: 'Gallery', type: 'images' },
+      { key: 'sort_order', label: 'Order on site', type: 'number', default: 10 },
+      { key: 'is_published', label: 'Show on website', type: 'checkbox', default: true },
+      ...seo,
+    ],
+  },
+  hotels: {
+    table: 'hotels', title: 'Hotels', singular: 'hotel', orderBy: 'name', ascending: true,
+    columns: [
+      { key: 'name', label: 'Hotel' },
+      { key: 'location', label: 'Location' },
+      { key: 'stars', label: 'Stars' },
+      { key: 'price_per_night', label: 'Per night', render: (r) => formatPrice(r.price_per_night, r.currency) || '' },
+    ],
+    fields: [
+      { key: 'name', label: 'Hotel name' },
+      { key: 'location', label: 'Location' },
+      { key: 'stars', label: 'Stars', type: 'number' },
+      { key: 'price_per_night', label: 'Cost per night (room)', type: 'number' },
+      { key: 'currency', label: 'Currency', type: 'select', options: CURRENCIES, default: 'USD' },
+      { key: 'is_active', label: 'Available to use', type: 'checkbox', default: true },
+      { key: 'description', label: 'Description', type: 'textarea', wide: true },
+      { key: 'images', label: 'Photos', type: 'images', wide: true },
+    ],
+  },
+  cars: {
+    table: 'cars', title: 'Vehicles', singular: 'vehicle', orderBy: 'name', ascending: true,
+    columns: [
+      { key: 'name', label: 'Vehicle' },
+      { key: 'vehicle_type', label: 'Type' },
+      { key: 'seats', label: 'Seats' },
+      { key: 'price_per_day', label: 'Per day', render: (r) => formatPrice(r.price_per_day, r.currency) || '' },
+    ],
+    fields: [
+      { key: 'name', label: 'Vehicle name', placeholder: 'e.g. Toyota Land Cruiser (pop-up roof)' },
+      { key: 'vehicle_type', label: 'Type', type: 'select', options: ['4x4 safari', 'SUV', 'Minivan', 'Coaster bus', 'Sedan'], default: '4x4 safari' },
+      { key: 'seats', label: 'Passenger seats', type: 'number' },
+      { key: 'price_per_day', label: 'Cost per day', type: 'number' },
+      { key: 'currency', label: 'Currency', type: 'select', options: CURRENCIES, default: 'USD' },
+      { key: 'with_driver', label: 'Includes driver-guide', type: 'checkbox', default: true },
+      { key: 'is_active', label: 'Available to use', type: 'checkbox', default: true },
+      { key: 'description', label: 'Description', type: 'textarea', wide: true },
+      { key: 'images', label: 'Photos', type: 'images', wide: true },
+    ],
+  },
+  attractions: {
+    table: 'attractions', title: 'Attractions & museums', singular: 'attraction', orderBy: 'name', ascending: true,
+    columns: [
+      { key: 'name', label: 'Name' },
+      { key: 'kind', label: 'Type' },
+      { key: 'location', label: 'Location' },
+      { key: 'price', label: 'Fee', render: (r) => formatPrice(r.price, r.currency) || '' },
+    ],
+    fields: [
+      { key: 'name', label: 'Name' },
+      { key: 'kind', label: 'Type', type: 'select', options: ['museum', 'attraction', 'activity', 'park', 'cultural'], default: 'attraction' },
+      { key: 'location', label: 'Location' },
+      { key: 'price', label: 'Fee per person', type: 'number' },
+      { key: 'currency', label: 'Currency', type: 'select', options: CURRENCIES, default: 'USD' },
+      { key: 'duration_hours', label: 'Duration (hours)', type: 'number' },
+      { key: 'is_active', label: 'Available to use', type: 'checkbox', default: true },
+      { key: 'description', label: 'Description', type: 'textarea', wide: true },
+      { key: 'images', label: 'Photos', type: 'images', wide: true },
+    ],
+  },
+};
