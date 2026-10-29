@@ -3,7 +3,11 @@ import { useSettings } from '../lib/settings';
 export default function Logo({ light = false }) {
   const { settings } = useSettings();
   if (settings.logo_url) {
-    return <img className="logo-img" src={settings.logo_url} alt={`${settings.site_name} Tour Operator`} />;
+    const img = <img className="logo-img" src={settings.logo_url} alt={`${settings.site_name} Tour Operator`} />;
+    // On dark backgrounds (footer, admin menu) the logo sits on a white tile so a navy logo stays visible
+    return light
+      ? <span style={{ display: 'inline-block', background: '#fff', padding: '8px 12px', borderRadius: 6 }}>{img}</span>
+      : img;
   }
   return (
     <span className={`logo-text ${light ? 'logo-text--light' : ''}`}>
