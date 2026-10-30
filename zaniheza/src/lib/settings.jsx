@@ -19,8 +19,14 @@ export const DEFAULT_SETTINGS = {
 
 const SettingsContext = createContext({ settings: DEFAULT_SETTINGS, reload: () => {} });
 
+const CACHE_KEY = 'zn-settings';
+function readCache() {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch { return {}; }
+}
+
 export function SettingsProvider({ children }) {
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  // Show the last known logo, hero photo and texts instantly, then refresh from the database
+  const [settings, setSettings] = useState(() => ({ ...DEFAULT_SETTINGS, ...readCache() }));
 
   const reload = async () => {
     if (!isConfigured) return;
@@ -28,6 +34,7 @@ export function SettingsProvider({ children }) {
     if (data) {
       const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== null && v !== ''));
       setSettings({ ...DEFAULT_SETTINGS, ...clean });
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(clean)); } catch { /* private mode */ }
     }
   };
 
