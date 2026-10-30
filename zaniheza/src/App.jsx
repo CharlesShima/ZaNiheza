@@ -16,7 +16,7 @@ const AdminApp = lazy(() => import('./admin/AdminApp'));
 
 function PublicLayout() {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
