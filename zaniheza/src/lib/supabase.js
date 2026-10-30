@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Clean up common copy-paste mistakes: spaces, a trailing slash, or the /rest/v1 ending
+const url = (import.meta.env.VITE_SUPABASE_URL || '')
+  .trim()
+  .replace(/\/rest\/v1\/?$/, '')
+  .replace(/\/+$/, '');
+const key = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
 export const isConfigured = Boolean(url && key);
 export const supabase = createClient(url || 'http://localhost:54321', key || 'missing-key');
