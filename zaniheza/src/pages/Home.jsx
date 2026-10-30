@@ -38,7 +38,7 @@ export default function Home() {
     <>
       <Seo />
       <section className={`hero ${settings.hero_image_url ? 'hero--photo' : ''}`}>
-        {settings.hero_image_url && <img className="hero-bg" src={settings.hero_image_url} alt="" />}
+        {settings.hero_image_url && <img className="hero-bg" src={settings.hero_image_url} alt="" style={{ objectPosition: settings.hero_position || 'center 30%' }} />}
         <div className="container hero-inner">
           <p className="hero-greeting">Muraho, welcome to Rwanda</p>
           <h1>{settings.hero_title}</h1>
