@@ -49,6 +49,14 @@ export default function Settings() {
           <small className="help">PNG or SVG with transparent background works best.</small></div>
         <div className="field"><label>Home page hero image</label><ImageInput value={v.hero_image_url} onChange={set('hero_image_url')} folder="brand" />
           <small className="help">Wide landscape photo, at least 1920 px wide.</small></div>
+        <div className="field"><label htmlFor="hero_position">Hero photo focus</label>
+          <select id="hero_position" value={v.hero_position || 'center 30%'} onChange={(e) => set('hero_position')(e.target.value)}>
+            <option value="center top">Top (keep heads in view)</option>
+            <option value="center 30%">Upper middle</option>
+            <option value="center center">Middle</option>
+            <option value="center bottom">Bottom</option>
+          </select>
+          <small className="help">If faces are cut off at the top, choose Top.</small></div>
         {TEXT.map(([k, label, type]) => (
           <div key={k} className={`field ${type ? 'field--wide' : ''}`}>
             <label htmlFor={k}>{label}</label>
