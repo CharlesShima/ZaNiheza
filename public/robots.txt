@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /admin
+Disallow: /me
+Disallow: /booking/
+Sitemap: https://zaniheza.com/sitemap.xml
