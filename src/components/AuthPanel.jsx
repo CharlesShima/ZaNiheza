@@ -1,5 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { supabase } from '../lib/supabase';
+
+const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
 
 function GoogleG() {
   return (
@@ -10,6 +14,71 @@ function GoogleG() {
       <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/>
     </svg>
   );
+}
+
+let gisPromise;
+function loadGoogleScript() {
+  gisPromise ||= new Promise((resolve, reject) => {
+    if (window.google?.accounts?.id) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true;
+    s.onload = resolve;
+    s.onerror = () => { gisPromise = null; reject(new Error('Google sign-in could not load')); };
+    document.head.appendChild(s);
+  });
+  return gisPromise;
+}
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Google's own button: sign-in happens on zaniheza.com, so Google shows your domain,
+// not the Supabase address. Falls back to the redirect button if it can't load.
+function GoogleButton({ next, onError }) {
+  const ref = useRef(null);
+  const navigate = useNavigate();
+  const [failed, setFailed] = useState(false);
+  const { signInWithGoogle } = useAuth();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await loadGoogleScript();
+        if (cancelled || !ref.current) return;
+        const raw = crypto.randomUUID();
+        const hashed = await sha256Hex(raw);
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          nonce: hashed,
+          ux_mode: 'popup',
+          use_fedcm_for_prompt: true,
+          callback: async (resp) => {
+            const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: resp.credential, nonce: raw });
+            if (error) onError(`Google sign-in didn’t work (${error.message}). Use your email below.`);
+            else navigate(next);
+          },
+        });
+        const width = Math.min(400, Math.max(220, Math.round(ref.current.getBoundingClientRect().width)));
+        window.google.accounts.id.renderButton(ref.current, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', width });
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [next, navigate, onError]);
+
+  if (failed) {
+    return (
+      <button type="button" className="btn btn--google btn--block" onClick={() => signInWithGoogle(next)}>
+        <GoogleG /> Continue with Google
+      </button>
+    );
+  }
+  return <div ref={ref} className="gis-button" style={{ minHeight: 44, display: 'flex', justifyContent: 'center' }} />;
 }
 
 // Sign in with Google (main route) or an email link (fallback). No passwords for members.
@@ -34,7 +103,11 @@ export default function AuthPanel({ next = '/me' }) {
 
   return (
     <div>
-      <button type="button" className="btn btn--google btn--block" onClick={google}><GoogleG /> Continue with Google</button>
+      {GOOGLE_CLIENT_ID ? (
+        <GoogleButton next={next} onError={setMsg} />
+      ) : (
+        <button type="button" className="btn btn--google btn--block" onClick={google}><GoogleG /> Continue with Google</button>
+      )}
       <div className="or">or use your email</div>
       <form className="form" onSubmit={byEmail}>
         <label>Email<input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
