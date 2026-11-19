@@ -10,8 +10,6 @@ import { useAuth } from '../lib/auth';
 import { useAsync } from '../lib/useAsync';
 import { getMembers, getReviews, getStories, getTrips } from '../lib/api';
 import { matchedTrips } from '../lib/match';
-import { ProfileForm } from './Me';
-import { AddTrip, HostProfileForm, MyTrips } from './HostApply';
 import { THEMES } from '../lib/content';
 import { SEO } from '../lib/content';
 
@@ -28,7 +26,6 @@ export default function Home() {
   const c = useContent();
   const { user, profile, host, loading: authLoading } = useAuth();
   const [params] = useSearchParams();
-  const [tick, setTick] = useState(0);
   const trips = useAsync(() => getTrips(), []);
   const pilots = { loading: trips.loading, data: (trips.data || []).filter((t) => t.is_pilot) };
   const upcoming = (trips.data || []).filter((t) => t.status === 'approved' && (!t.starts_at || new Date(t.starts_at) > new Date()));
@@ -193,10 +190,14 @@ export default function Home() {
                   <li>Name</li><li>Photo</li><li>Home city & country</li><li>Languages</li>
                   <li>Interests</li><li>Towns to see</li><li>Travel style</li><li>Dates in Rwanda</li>
                 </ol>
-                <AuthPanel next="/?join=1" />
+                <AuthPanel next="/me" />
               </>
             ) : !profile?.profile_done ? (
-              <ProfileForm />
+              <div className="stack">
+                <h3 style={{ margin: 0 }}>You’re signed in{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}</h3>
+                <p className="muted" style={{ margin: 0 }}>Answer 8 quick questions in your dashboard to see the Trips matched for you.</p>
+                <Link className="btn btn--navy" to="/me">Finish my profile</Link>
+              </div>
             ) : (
               <div className="stack">
                 <h3 style={{ margin: 0 }}>Matched for you{profile.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}</h3>
@@ -232,21 +233,24 @@ export default function Home() {
               <div className="inline-panel">
                 <h3>Become a host</h3>
                 <p className="muted">Join free first. Then your host profile form opens right here.</p>
-                <AuthPanel next="/?host=1" />
+                <AuthPanel next="/host" />
               </div>
-            ) : !host ? (
-              <HostProfileForm />
             ) : (
-              <>
-                <div className="inline-panel" role="status">
-                  {host.status === 'pending' && <p style={{ margin: 0 }}><strong>Application received.</strong> We’ll contact you for a 15-minute call or coffee. Your first Trip is co-hosted with ZaNiheza.</p>}
-                  {host.status === 'approved' && <p style={{ margin: 0 }}><strong>You’re a vetted host.</strong> Add a Trip below. <Link to={`/hosts/${host.id}`}>Your public profile</Link></p>}
-                  {(host.status === 'paused' || host.status === 'rejected') && <p style={{ margin: 0 }}>Your hosting is {host.status}. Email muraho@zaniheza.com to talk about it.</p>}
-                  <p style={{ margin: '.6rem 0 0' }}><Link to="/host">Edit my host profile</Link></p>
-                </div>
-                {host.status === 'approved' && <AddTrip onAdded={() => setTick((t) => t + 1)} />}
-                <MyTrips tick={tick} />
-              </>
+              <div className="inline-panel">
+                {host ? (
+                  <>
+                    <h3>Your host dashboard</h3>
+                    <p className="muted">Status: <strong>{host.status === 'approved' ? 'vetted host' : host.status === 'pending' ? 'application received' : host.status}</strong>. Manage your Trips, bookings and reviews there.</p>
+                    <Link className="btn btn--navy" to="/host">Open my host dashboard</Link>
+                  </>
+                ) : (
+                  <>
+                    <h3>Ready to host?</h3>
+                    <p className="muted">Create your host profile. We’ll vet it with a 15-minute call or coffee.</p>
+                    <Link className="btn btn--amber" to="/host">Apply to host</Link>
+                  </>
+                )}
+              </div>
             )}
             <div className="card" style={{ background: 'rgba(255,255,255,.06)', borderColor: 'rgba(255,255,255,.15)', boxShadow: 'none' }}>
               <h3>Six ways to host</h3>

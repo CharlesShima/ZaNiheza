@@ -37,6 +37,8 @@ export const getMembers = (limit) => {
 export const getMyBookings = (userId) =>
   run(supabase.from('bookings').select('*, trip:trips(id, slug, title, town, starts_at, ends_at)').eq('user_id', userId).order('created_at', { ascending: false }));
 export const getMyReviews = (userId) => run(supabase.from('reviews').select('trip_id').eq('user_id', userId));
+export const getHostBookings = () =>
+  run(supabase.from('host_trip_bookings').select('*').order('starts_at', { ascending: true }));
 export const getChatLink = (tripId) => run(supabase.from('trip_private').select('chat_link').eq('trip_id', tripId).maybeSingle());
 
 export async function startCheckout(tripId, seats) {

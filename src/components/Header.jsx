@@ -2,9 +2,9 @@ import { Link, NavLink } from 'react-router-dom';
 import Logo from './Logo';
 import { useAuth } from '../lib/auth';
 
-// One persistent top header on every page. All six items stay visible on phones.
+// One persistent top header on every page. Admin only shows for the ZaNiheza team.
 export default function Header() {
-  const { user } = useAuth();
+  const { user, isStaff } = useAuth();
   return (
     <header className="site-header">
       <div className="container header-inner">
@@ -14,8 +14,8 @@ export default function Header() {
           <NavLink to="/hosts">Hosts</NavLink>
           <NavLink to="/community">Community</NavLink>
           <NavLink to="/stories">Stories</NavLink>
-          <NavLink to={user ? '/me' : '/join'} className="nav-join">{user ? 'My trips' : 'Join'}</NavLink>
-          <NavLink to="/admin">Admin</NavLink>
+          <NavLink to={user ? '/me' : '/join'} className="nav-join">{user ? 'Dashboard' : 'Join'}</NavLink>
+          {isStaff && <NavLink to="/admin">Admin</NavLink>}
         </nav>
       </div>
     </header>

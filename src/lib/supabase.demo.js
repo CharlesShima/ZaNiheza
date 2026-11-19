@@ -56,6 +56,15 @@ const rowsOf = (table) => {
       languages: p.languages, interests: p.interests, towns: p.towns, travel_style: p.travel_style, created_at: p.created_at,
     }));
   }
+  if (table === 'host_trip_bookings') {
+    const me = db.hosts.find((h) => h.user_id === session?.user?.id);
+    if (!me) return [];
+    return db.bookings.filter((b) => ['paid', 'refunded'].includes(b.status)).map((b) => {
+      const t = db.trips.find((x) => x.id === b.trip_id);
+      if (!t || t.host_id !== me.id) return null;
+      return { id: b.id, trip_id: t.id, trip_title: t.title, starts_at: t.starts_at, first_name: (b.name || '').split(' ')[0], seats: b.seats, status: b.status, created_at: b.created_at };
+    }).filter(Boolean);
+  }
   return (db[table] ||= []);
 };
 

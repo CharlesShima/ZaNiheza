@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import Seo from '../components/Seo';
 import AuthPanel from '../components/AuthPanel';
 import PhotoField from '../components/PhotoField';
-import { Loading, Pick } from '../components/Common';
+import { Loading, Pick, ReviewCard } from '../components/Common';
+import DashHead from '../components/DashHead';
+import { getHostBookings, getReviews } from '../lib/api';
 import { HostRule, HostSteps } from '../components/Sections';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
@@ -125,7 +127,7 @@ export function AddTrip({ onAdded }) {
 
 export function MyTrips({ tick }) {
   const { user } = useAuth();
-  const { data } = useAsync(() => supabase.from('trips').select('id, slug, title, status, starts_at, price').eq('submitted_by', user.id).order('created_at', { ascending: false }).then((r) => r.data || []), [tick]);
+  const { data } = useAsync(() => supabase.from('trips').select('id, slug, title, status, starts_at, price, currency, seats_booked, capacity, host_payout').eq('submitted_by', user.id).order('created_at', { ascending: false }).then((r) => r.data || []), [tick]);
   if (!data?.length) return null;
   const label = { pending: 'Pending review — ZaNiheza will approve it before it goes live.', approved: 'Live', paused: 'Paused', completed: 'Completed', rejected: 'Not approved', draft: 'Draft' };
   return (
@@ -137,6 +139,7 @@ export function MyTrips({ tick }) {
             <strong>{t.status === 'approved' ? <Link to={`/trips/${t.slug}`}>{t.title}</Link> : t.title}</strong>
             <span className="small"> {formatDate(t.starts_at)}</span><br />
             <span className={`status-pill ${t.status === 'approved' ? 'status-pill--live' : ''}`}>{label[t.status]}</span>
+            {t.status === 'approved' && <span className="small"> {t.seats_booked} / {t.capacity} booked{t.host_payout === 'paid' ? ', paid out' : t.host_payout === 'due' ? ', payout due' : ''}</span>}
           </li>
         ))}
       </ul>
@@ -144,45 +147,135 @@ export function MyTrips({ tick }) {
   );
 }
 
+function HostOverview({ go }) {
+  const { host } = useAuth();
+  const trips = useAsync(() => supabase.from('trips').select('id, title, slug, status, starts_at, seats_booked, capacity, price, currency, host_payout').eq('host_id', host.id).order('starts_at').then((r) => r.data || []), [host.id]);
+  const reviews = useAsync(() => getReviews({ hostId: host.id }), [host.id]);
+  const list = trips.data || [];
+  const upcoming = list.filter((t) => t.status === 'approved' && t.starts_at && new Date(t.starts_at) > new Date());
+  const seats = upcoming.reduce((n, t) => n + t.seats_booked, 0);
+  const revs = reviews.data || [];
+  const avg = revs.length ? (revs.reduce((n, r) => n + r.rating, 0) / revs.length).toFixed(1) : null;
+  const due = list.filter((t) => t.host_payout === 'due').length;
+  return (
+    <div className="stack" style={{ gap: '1.5rem' }}>
+      <StatusNote />
+      <div className="stat-cards">
+        <div className="stat-card"><b>{upcoming.length}</b><span>upcoming Trips</span></div>
+        <div className="stat-card"><b>{seats}</b><span>seats booked</span></div>
+        <div className="stat-card"><b>{avg || '—'}</b><span>{revs.length ? `average from ${revs.length} review${revs.length > 1 ? 's' : ''}` : 'no reviews yet'}</span></div>
+        <div className="stat-card"><b>{due}</b><span>payouts due from ZaNiheza</span></div>
+      </div>
+      <div className="dash-grid">
+        <div className="card">
+          <h2 style={{ fontSize: '1.3rem' }}>Next Trips</h2>
+          {upcoming.length ? (
+            <ul className="data-list">{upcoming.slice(0, 4).map((t) => <li key={t.id}><span><strong>{t.title}</strong><br /><span className="small">{formatDate(t.starts_at)}</span></span><span className="small">{t.seats_booked} / {t.capacity} booked</span></li>)}</ul>
+          ) : <p className="muted">No upcoming Trips yet.</p>}
+          {host.status === 'approved' && <button className="btn btn--amber btn--small" style={{ marginTop: '1rem' }} onClick={() => go('trips')}>Add a Trip</button>}
+        </div>
+        <div className="card">
+          <h2 style={{ fontSize: '1.3rem' }}>Your public profile</h2>
+          <p className="muted">{host.status === 'approved' ? 'Travellers see your town, languages, formats, 3 places and reviews.' : 'Your profile goes public once you are vetted.'}</p>
+          {host.status === 'approved' && <Link className="btn btn--outline btn--small" to={`/hosts/${host.id}`}>View it</Link>}
+          <button className="btn btn--text" onClick={() => go('profile')}>Edit my host profile</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusNote() {
+  const { host } = useAuth();
+  return (
+    <div className="note" role="status">
+      {host.status === 'pending' && <><strong>Application received.</strong> We’ll contact you for a 15-minute call or coffee. Your first Trip is co-hosted with ZaNiheza.</>}
+      {host.status === 'approved' && <><strong>You’re a vetted host.</strong> Add Trips any time. ZaNiheza approves each one and sets the final price.</>}
+      {host.status === 'paused' && <><strong>Your hosting is paused.</strong> Email muraho@zaniheza.com to talk about it.</>}
+      {host.status === 'rejected' && <><strong>We can’t take your application right now.</strong> Email us if anything has changed.</>}
+    </div>
+  );
+}
+
+function HostBookings() {
+  const { data, loading, error } = useAsync(getHostBookings, []);
+  if (loading) return <Loading />;
+  if (error) return <p className="note">Bookings will show here once the dashboard update is installed. ({error.message})</p>;
+  if (!data?.length) return <div className="empty"><strong>No bookings yet</strong>When travellers book your Trips, you’ll see their first names and seats here.</div>;
+  return (
+    <ul className="data-list">
+      {data.map((b) => (
+        <li key={b.id}>
+          <span><strong>{b.first_name || 'Traveller'}</strong>, {b.seats} seat{b.seats > 1 ? 's' : ''}<br /><span className="small">{b.trip_title}, {formatDate(b.starts_at)}</span></span>
+          <span className={`status-pill ${b.status === 'paid' ? 'status-pill--live' : ''}`}>{b.status === 'paid' ? 'Confirmed' : 'Refunded'}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function HostReviews() {
+  const { host } = useAuth();
+  const { data, loading } = useAsync(() => getReviews({ hostId: host.id }), [host.id]);
+  if (loading) return <Loading />;
+  if (!data?.length) return <div className="empty"><strong>No reviews yet</strong>Only travellers who went on your Trip can review you, after the Trip.</div>;
+  return <div className="stack">{data.map((r) => <ReviewCard key={r.id} review={r} />)}</div>;
+}
+
 export default function HostApply() {
   const { user, host, loading } = useAuth();
+  const [tab, setTab] = useState('overview');
   const [tick, setTick] = useState(0);
   if (loading) return <div className="container section"><Loading /></div>;
+
+  // Not a host yet: the application page
+  if (!user || !host) {
+    return (
+      <>
+        <Seo title="Host a Trip" description="Become a ZaNiheza host: show travellers your town in Rwanda. Get vetted, add Trips, get reviewed and paid." />
+        {user ? <DashHead active="host" subtitle="Apply to host: create your host profile and we’ll be in touch." /> : (
+          <section className="page-head"><div className="container"><h1>Host a Trip</h1><p>Show travellers your town. Create a host profile, get vetted, then add your own Trips.</p></div></section>
+        )}
+        <section className="section">
+          <div className="container detail">
+            <div className="stack">
+              {!user ? <div className="card"><h2 style={{ fontSize: '1.6rem' }}>First, join free</h2><AuthPanel next="/host" /></div> : <HostProfileForm />}
+            </div>
+            <aside className="card">
+              <h2 style={{ fontSize: '1.4rem' }}>How hosting works</h2>
+              <HostSteps />
+              <HostRule />
+            </aside>
+          </div>
+        </section>
+      </>
+    );
+  }
+
+  const go = (k) => { setTab(k); window.scrollTo(0, 0); };
   return (
     <>
-      <Seo title="Host a Trip" description="Become a ZaNiheza host: show travellers your town in Rwanda. Get vetted, add Trips, get reviewed and paid." />
-      <section className="page-head">
+      <Seo title="Host dashboard" noindex />
+      <DashHead active="host" subtitle={`Host dashboard, ${host.town || 'Rwanda'}.`} />
+      <section className="section" style={{ paddingTop: '2rem' }}>
         <div className="container">
-          <h1>Host a Trip</h1>
-          <p>Show travellers your town. Create a host profile, get vetted, then add your own Trips.</p>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container detail">
-          <div className="stack">
-            {!user ? (
-              <div className="card"><h2 style={{ fontSize: '1.6rem' }}>First, join free</h2><AuthPanel next="/host" /></div>
-            ) : (
-              <>
-                {host && (
-                  <div className={`note`} role="status">
-                    {host.status === 'pending' && <><strong>Application received.</strong> We’ll contact you for a 15-minute call or coffee. Your first Trip is co-hosted with ZaNiheza.</>}
-                    {host.status === 'approved' && <><strong>You’re a vetted host.</strong> Add Trips below. <Link to={`/hosts/${host.id}`}>See your public profile</Link></>}
-                    {host.status === 'paused' && <><strong>Your hosting is paused.</strong> Email muraho@zaniheza.com to talk about it.</>}
-                    {host.status === 'rejected' && <><strong>We can’t take your application right now.</strong> Email us if anything has changed.</>}
-                  </div>
-                )}
-                {host?.status === 'approved' && <AddTrip onAdded={() => setTick((t) => t + 1)} />}
-                {host && <MyTrips tick={tick} />}
-                <HostProfileForm />
-              </>
-            )}
+          <div className="tabs" role="tablist" aria-label="Host dashboard">
+            {[['overview', 'Overview'], ['trips', 'My Trips'], ['bookings', 'Bookings'], ['reviews', 'Reviews'], ['profile', 'Host profile']].map(([k, l]) => (
+              <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'is-on' : ''} onClick={() => setTab(k)}>{l}</button>
+            ))}
           </div>
-          <aside className="card">
-            <h2 style={{ fontSize: '1.4rem' }}>How hosting works</h2>
-            <HostSteps />
-            <HostRule />
-          </aside>
+          {tab === 'overview' && <HostOverview go={go} />}
+          {tab === 'trips' && (
+            <div className="detail">
+              <div className="stack">
+                {host.status === 'approved' ? <AddTrip onAdded={() => setTick((t) => t + 1)} /> : <StatusNote />}
+              </div>
+              <aside><MyTrips tick={tick} /></aside>
+            </div>
+          )}
+          {tab === 'bookings' && <HostBookings />}
+          {tab === 'reviews' && <HostReviews />}
+          {tab === 'profile' && <div style={{ maxWidth: 820 }}><HostProfileForm /></div>}
         </div>
       </section>
     </>

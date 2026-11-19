@@ -36,7 +36,7 @@ export default function Footer() {
       </div>
       <div className="container footer-base">
         <span>© {new Date().getFullYear()} ZaNiheza. Launching first in Rwanda, growing across Africa.</span>
-        <span>zaniheza.com</span>
+        <Link to="/admin/login">Team login</Link>
       </div>
     </footer>
   );

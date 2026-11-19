@@ -19,7 +19,7 @@ Replace the contents of your `zaniheza` folder with this one (GitHub Desktop is 
 Hidden items to include: `public/_redirects`, `netlify/` folder.
 
 ### 2. Update the database (Supabase)
-1. Supabase > SQL Editor > New query: paste all of `supabase/migration-2026-11-community.sql` and Run. (Your old `schema.sql` is already done; don’t run it again.)
+1. Supabase > SQL Editor > New query: paste all of `supabase/migration-2026-11-community.sql` and Run. Then do the same with `supabase/migration-2026-11-dashboards.sql`. (Your old `schema.sql` is already done; don’t run it again.)
 2. Authentication > Sign In / Providers: turn **ON** “Allow new users to sign up” (travellers need it now).
 3. Authentication > URL Configuration: Site URL `https://zaniheza.com`; add `https://zaniheza.com/**` to Redirect URLs.
 
@@ -28,6 +28,9 @@ Hidden items to include: `public/_redirects`, `netlify/` folder.
 2. Credentials > Create credentials > OAuth client ID > Web application.
    Authorised redirect URI: `https://fjcrksjuxwdeseeztbac.supabase.co/auth/v1/callback`
 3. Copy the Client ID and Client secret into Supabase > Authentication > Sign In / Providers > Google > Enable > Save.
+
+### 3b. Show zaniheza.com on the Google screen (free)
+In Netlify add `VITE_GOOGLE_CLIENT_ID` = your Google Client ID (not secret), and in Supabase > Google provider paste the same ID into "Client IDs". Redeploy.
 
 ### 4. Stripe payments
 1. dashboard.stripe.com (start in **Test mode**). Developers > API keys: copy the **Secret key** (`sk_test_…`).
